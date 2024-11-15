@@ -3,7 +3,7 @@ import express from "express";
 import mongoose from "mongoose";
 import userRoute from "../backend/routes/user.route.js";
 import authRoute from "../backend/routes/auth.route.js";
-import errorMiddleware from "./utils/errorMiddleware.js";
+import { globalErrorHandler } from "./utils/globalErrorHandler.js";
 
 dotenv.config();
 
@@ -21,13 +21,12 @@ const app = express();
 
 //  middleware for parsing JSON request bodies
 app.use(express.json());
+// Error handling middleware should be the last middleware added
+app.use(globalErrorHandler);
 
 app.listen(3000, () => {
   console.log("Server  is running on port 3000!");
 });
-
-// Error handling middleware should be the last middleware added
-app.use(errorMiddleware);
 
 app.use("/api/auth", authRoute);
 app.use("/api/user", userRoute);

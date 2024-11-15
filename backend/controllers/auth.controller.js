@@ -1,6 +1,7 @@
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
-import { errorHandler } from "../utils/errorHandler.js";
+import { errorHandler } from "../utils/responseHandler.js";
+import jwt from "jsonwebtoken";
 
 export const signup = async (req, res, next) => {
   const { username, email, password } = req.body;
@@ -14,7 +15,7 @@ export const signup = async (req, res, next) => {
     email === "" ||
     password === ""
   ) {
-    return next(errorHandler(400, "All fields must be provided"));
+    next(errorHandler(400, "Please provide all the required fields"));
   }
 
   try {
@@ -24,7 +25,11 @@ export const signup = async (req, res, next) => {
     });
 
     if (existingUser) {
-      return next(errorHandler(400, "Username or email already taken"));
+      if (existingUser.username === username) {
+        return res.status(400).json({ error: "Username already taken" });
+      } else {
+        return res.status(400).json({ error: "Email already registered" });
+      }
     }
 
     // Hash the password
@@ -39,6 +44,41 @@ export const signup = async (req, res, next) => {
       data: { username, email },
     });
   } catch (error) {
-    next(errorHandler(500, "Internal server error")); // Pass the custom error to the error handler
+    next(error); // Pass the custom error to the error handler
+  }
+};
+
+export const signin = async (req, res, next) => {
+  const { email, password } = req.body;
+
+  if (!email || !password || email === "" || password === "") {
+    return next(errorHandler(400, "All fields required"));
+  }
+
+  try {
+    const validUser = await User.findOne({ email });
+    if (!validUser) {
+      return next(errorHandler(404, "User not found"));
+    }
+
+    const validPassword = bcrypt.compare(password, validUser.password);
+    if (!validPassword) {
+      return res.status(400).json({
+        success: false,
+        statusCode: 400,
+        message: "Invalid password",
+      });
+    }
+
+    const token = jwt.sign({ id: validUser._id }, process.env.JWT_SECRET_KEY, {
+      expiresIn: "1d",
+    });
+    const { password: pass, ...rest } = validUser._doc;
+    res
+      .status(200)
+      .cookie("valite_token", token, { httpOnly: true })
+      .json({ rest, message: "Signin successful", token: token });
+  } catch (error) {
+    next(error);
   }
 };
