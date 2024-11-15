@@ -3,6 +3,7 @@ import express from "express";
 import mongoose from "mongoose";
 import userRoute from "../backend/routes/user.route.js";
 import authRoute from "../backend/routes/auth.route.js";
+import errorMiddleware from "./utils/errorMiddleware.js";
 
 dotenv.config();
 
@@ -24,6 +25,9 @@ app.use(express.json());
 app.listen(3000, () => {
   console.log("Server  is running on port 3000!");
 });
+
+// Error handling middleware should be the last middleware added
+app.use(errorMiddleware);
 
 app.use("/api/auth", authRoute);
 app.use("/api/user", userRoute);

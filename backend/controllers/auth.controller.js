@@ -1,7 +1,8 @@
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
+import { errorHandler } from "../utils/errorHandler.js";
 
-export const signup = async (req, res) => {
+export const signup = async (req, res, next) => {
   const { username, email, password } = req.body;
 
   // Validate input fields
@@ -13,7 +14,7 @@ export const signup = async (req, res) => {
     email === "" ||
     password === ""
   ) {
-    return res.status(400).json({ message: "All fields must be provided" });
+    return next(errorHandler(400, "All fields must be provided"));
   }
 
   try {
@@ -23,7 +24,7 @@ export const signup = async (req, res) => {
     });
 
     if (existingUser) {
-      return res.status(400).json("Username or email already taken");
+      return next(errorHandler(400, "Username or email already taken"));
     }
 
     // Hash the password
@@ -34,7 +35,6 @@ export const signup = async (req, res) => {
     await newUser.save();
     res.status(201).json("User saved successfully");
   } catch (error) {
-    console.error("Error during signup:", error);
-    res.status(500).json("Internal server error");
+    next(errorHandler(500, "Internal server error")); // Pass the custom error to the error handler
   }
 };
