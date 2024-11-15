@@ -33,7 +33,11 @@ export const signup = async (req, res, next) => {
     // Create and save the new user
     const newUser = new User({ username, email, password: hashedPassword });
     await newUser.save();
-    res.status(201).json("User saved successfully");
+    res.status(201).json({
+      success: true,
+      message: "User registered successfully",
+      data: { username, email },
+    });
   } catch (error) {
     next(errorHandler(500, "Internal server error")); // Pass the custom error to the error handler
   }
