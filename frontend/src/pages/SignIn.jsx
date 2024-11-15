@@ -1,12 +1,18 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Alert, Button, Label, Spinner, TextInput } from "flowbite-react";
 import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  signInStart,
+  signInSuccess,
+  signInFailure,
+} from "../redux/user/userSlice";
 
 export default function SignIn() {
   // State to hold the values of multiple inputs
   const [inputValue, setInputValue] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const { loading, error: errorMessage } = useSelector((state) => state.user);
+  const dispatch = useDispatch();
   const navigate = useNavigate();
 
   // Function to handle changes in input fields
@@ -18,38 +24,48 @@ export default function SignIn() {
   };
 
   const handleSubmit = async (event) => {
-    event.preventDefault(); // Prevent the default form submission behavior
+    event.preventDefault();
 
     // Validate input fields
     if (!inputValue.email || !inputValue.password) {
-      return setErrorMessage("Please fill all required fields");
+      return dispatch(signInFailure("Please fill all the fields"));
     }
 
     try {
-      setLoading(true);
-      setErrorMessage(null);
+      dispatch(signInStart());
+
       const res = await fetch("/api/auth/signin", {
         method: "POST",
-        headers: { "Content-Type": "application/json" }, // Set the correct headers
-        body: JSON.stringify(inputValue), // Convert input values to JSON
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(inputValue),
       });
 
-      // Check if the response is OK (status in the range 200-299)
+      // Check if the response status is OK (200-299)
       if (!res.ok) {
-        const errorData = await res.json(); // Parse the JSON response for error details
-        throw new Error(
-          errorData.message || `Error: ${res.status} ${res.statusText}`
-        );
+        const errorText = await res.text(); // Attempt to read the error response as text
+        throw new Error(`${errorText}`);
       }
 
-      setLoading(false);
-      if (res.ok) {
+      // Check if the response's Content-Type is JSON before trying to parse
+      const contentType = res.headers.get("Content-Type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Invalid response format. Expected JSON.");
+      }
+
+      // Try parsing the JSON response
+      const data = await res.json();
+
+      // Handle response based on success flag
+      if (data.success === false) {
+        dispatch(signInFailure(data.message));
+      } else {
+        // Dispatch success action with user data
+        dispatch(signInSuccess(data));
         navigate("/");
       }
-      setErrorMessage("");
     } catch (error) {
-      console.error("Signup error:", error); // Log any errors
-      setErrorMessage(error.message); // Display the error message to the user
+      // Handle any errors (e.g., network issues, parsing errors)
+      dispatch(signInFailure(error.message || "An unexpected error occurred"));
     }
   };
 

@@ -51,34 +51,36 @@ export const signup = async (req, res, next) => {
 export const signin = async (req, res, next) => {
   const { email, password } = req.body;
 
-  if (!email || !password || email === "" || password === "") {
-    return next(errorHandler(400, "All fields required"));
+  // Validate input fields
+  if (!email || !password) {
+    return next(errorHandler(400, "All fields are required"));
   }
 
   try {
+    // Check if user exists
     const validUser = await User.findOne({ email });
     if (!validUser) {
-      return next(errorHandler(404, "User not found"));
+      res.status(404).json("User not found");
     }
 
-    const validPassword = bcrypt.compare(password, validUser.password);
+    // Compare password
+    const validPassword = await bcrypt.compare(password, validUser.password);
     if (!validPassword) {
-      return res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: "Invalid password",
-      });
+      return res.status(400).json("Invalid credentials");
     }
 
-    const token = jwt.sign({ id: validUser._id }, process.env.JWT_SECRET_KEY, {
-      expiresIn: "1d",
-    });
+    // Generate JWT token
+    const token = jwt.sign({ id: validUser._id }, process.env.JWT_SECRET_KEY);
+
+    // Exclude password from response
     const { password: pass, ...rest } = validUser._doc;
+
+    // Send response with token
     res
       .status(200)
       .cookie("valite_token", token, { httpOnly: true })
-      .json({ validUser, message: "Signin successful", token: token });
+      .json({ success: true, message: "Signin successful", user: rest, token });
   } catch (error) {
-    next(error);
+    next(error); // Pass error to the error handling middleware
   }
 };
